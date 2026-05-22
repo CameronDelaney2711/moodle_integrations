@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Teacher Dashboard</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, sans-serif; background: #f5f5f3; min-height: 100vh; }
+.topbar { background: #fff; border-bottom: 0.5px solid #e0e0e0; padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; position: relative; }
+.topbar .title { font-size: 15px; font-weight: 500; }
+.topbar-right { display: flex; align-items: center; gap: 12px; }
+.teacher-name { font-size: 13px; color: #666; }
+.btn-signout { font-size: 13px; background: none; border: 0.5px solid #fca5a5; color: #b91c1c; padding: 6px 14px; border-radius: 8px; cursor: pointer; }
+.btn-signout:hover { background: #fef2f2; }
+.btn-bell { position: relative; background: none; border: 0.5px solid #e0e0e0; border-radius: 8px; padding: 6px 12px; cursor: pointer; font-size: 16px; }
+.btn-bell:hover { background: #f5f5f3; }
+.bell-badge { position: absolute; top: -6px; right: -6px; background: #b91c1c; color: #fff; font-size: 10px; font-weight: 500; width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.notif-panel { display: none; position: absolute; top: 56px; right: 16px; width: 340px; background: #fff; border: 0.5px solid #e0e0e0; border-radius: 12px; z-index: 50; }
+.notif-panel.open { display: block; }
+.notif-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 0.5px solid #e0e0e0; }
+.notif-header span { font-size: 14px; font-weight: 500; }
+.notif-header button { background: none; border: none; cursor: pointer; font-size: 16px; color: #666; }
+.notif-item { padding: 12px 16px; border-bottom: 0.5px solid #f0f0f0; }
+.notif-item:last-child { border-bottom: none; }
+.notif-name { font-size: 14px; font-weight: 500; }
+.notif-meta { font-size: 12px; color: #666; margin-top: 2px; }
+.notif-actions { display: flex; gap: 8px; margin-top: 8px; }
+.btn-notif-reset { font-size: 12px; padding: 5px 12px; border-radius: 6px; cursor: pointer; background: #111; color: #fff; border: none; }
+.btn-notif-dismiss { font-size: 12px; padding: 5px 12px; border-radius: 6px; cursor: pointer; background: #fff; color: #666; border: 0.5px solid #ccc; }
+.notif-empty { padding: 24px 16px; text-align: center; font-size: 13px; color: #888; }
+.container { max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
+.login-card { background: #fff; border-radius: 12px; border: 0.5px solid #e0e0e0; padding: 2rem; max-width: 400px; margin: 4rem auto; }
+.login-card h2 { font-size: 18px; font-weight: 500; margin-bottom: 1.5rem; }
+.field { margin-bottom: 12px; }
+.field label { display: block; font-size: 13px; color: #666; margin-bottom: 4px; }
+.field input { width: 100%; padding: 8px 12px; font-size: 14px; border: 0.5px solid #ccc; border-radius: 8px; outline: none; }
+.field input:focus { border-color: #888; }
+.btn { width: 100%; padding: 9px; font-size: 14px; font-weight: 500; border-radius: 8px; cursor: pointer; border: none; background: #111; color: #fff; margin-top: 4px; }
+.btn:hover { background: #333; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.alert { padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-top: 12px; display: none; }
+.alert.error { background: #fef2f2; color: #b91c1c; border: 0.5px solid #fca5a5; }
+.alert.success { background: #f0fdf4; color: #15803d; border: 0.5px solid #86efac; }
+.section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+.section-header h2 { font-size: 16px; font-weight: 500; }
+.badge { font-size: 12px; background: #f1f1ee; color: #666; padding: 3px 10px; border-radius: 20px; }
+.filters { display: flex; gap: 8px; margin-bottom: 1.5rem; }
+.filters input { flex: 1; padding: 8px 12px; font-size: 14px; border: 0.5px solid #ccc; border-radius: 8px; outline: none; }
+.filters input:focus { border-color: #888; }
+.filters select { padding: 8px 12px; font-size: 14px; border: 0.5px solid #ccc; border-radius: 8px; outline: none; background: #fff; cursor: pointer; min-width: 160px; }
+.filters select:focus { border-color: #888; }
+.student-card { background: #fff; border-radius: 12px; border: 0.5px solid #e0e0e0; padding: 1rem 1.25rem; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; }
+.student-info { display: flex; align-items: center; gap: 12px; }
+.avatar { width: 40px; height: 40px; border-radius: 50%; background: #dbeafe; color: #1d4ed8; display: flex; align-items: center; justify-content: center; font-weight: 500; font-size: 13px; flex-shrink: 0; }
+.student-name { font-size: 14px; font-weight: 500; }
+.student-meta { font-size: 12px; color: #666; margin-top: 2px; }
+.btn-reset { font-size: 13px; background: none; border: 0.5px solid #ccc; color: #333; padding: 6px 14px; border-radius: 8px; cursor: pointer; white-space: nowrap; }
+.btn-reset:hover { border-color: #888; }
+.empty { text-align: center; color: #888; font-size: 14px; padding: 3rem; }
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); align-items: center; justify-content: center; z-index: 100; }
+.modal-overlay.open { display: flex; }
+.modal { background: #fff; border-radius: 12px; padding: 1.5rem; width: 100%; max-width: 360px; }
+.modal h3 { font-size: 16px; font-weight: 500; margin-bottom: 4px; }
+.modal .subtitle { font-size: 13px; color: #666; margin-bottom: 1rem; }
+.modal-btns { display: flex; gap: 8px; margin-top: 1rem; }
+.modal-btns button { flex: 1; padding: 8px; font-size: 13px; border-radius: 8px; cursor: pointer; }
+.btn-cancel { background: #fff; border: 0.5px solid #ccc; color: #333; }
+.btn-confirm { background: #111; border: none; color: #fff; font-weight: 500; }
+</style>
+</head>
+<body>
+
+<!-- Login Screen -->
+<div id="login-screen">
+  <div class="login-card">
+    <h2>Teacher Login</h2>
+    <div class="field"><label>Username</label><input id="l_username" placeholder="teacher1"></div>
+    <div class="field"><label>Password</label><input id="l_password" type="password" placeholder="••••••••"></div>
+    <button class="btn" id="btn-login" onclick="doLogin()">Sign in</button>
+    <div class="alert" id="login-alert"></div>
+  </div>
+</div>
+
+<!-- Dashboard Screen -->
+<div id="dashboard-screen" style="display:none;">
+  <div class="topbar">
+    <span class="title">Teacher Dashboard</span>
+    <div class="topbar-right">
+      <span class="teacher-name" id="teacher-name"></span>
+      <button class="btn-bell" id="btn-bell" onclick="toggleNotifications()">
+        &#128276;
+        <span class="bell-badge" id="bell-badge" style="display:none;">0</span>
+      </button>
+      <button class="btn-signout" onclick="doLogout()">Sign out</button>
+    </div>
+    <div class="notif-panel" id="notif-panel">
+      <div class="notif-header">
+        <span>Password Reset Requests</span>
+        <button onclick="toggleNotifications()">✕</button>
+      </div>
+      <div id="notif-list"></div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="section-header">
+      <h2>My Students</h2>
+      <span class="badge" id="student-count">0 students</span>
+    </div>
+    <div class="filters">
+      <input id="search" placeholder="Search by name or username..." oninput="filterStudents()">
+      <select id="class-filter" onchange="filterStudents()">
+        <option value="">All classes</option>
+      </select>
+    </div>
+    <div id="student-list"></div>
+  </div>
+</div>
+
+<!-- Reset Password Modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h3>Reset Password</h3>
+    <p class="subtitle" id="modal-subtitle"></p>
+    <div class="field"><label>New Password</label><input id="new-password" type="password" placeholder="Min 8 chars, 1 uppercase, 1 number"></div>
+    <div class="alert" id="modal-alert"></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-confirm" id="btn-confirm" onclick="confirmReset()">Reset Password</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = "http://34.244.255.166:8000/api";
+let currentToken = null;
+let currentTeacher = null;
+let allStudents = [];
+let selectedStudent = null;
+let selectedNotifId = null;
+let notifications = [];
+
+function authHeaders() {
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${currentToken}`
+  };
+}
+
+function showAlert(id, msg, type) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.className = 'alert ' + type;
+  el.style.display = 'block';
+}
+
+function hideAlert(id) {
+  document.getElementById(id).style.display = 'none';
+}
+
+async function doLogin() {
+  hideAlert('login-alert');
+  const username = document.getElementById('l_username').value.trim();
+  const password = document.getElementById('l_password').value;
+  if (!username || !password) return showAlert('login-alert', 'Please enter your username and password.', 'error');
+
+  const btn = document.getElementById('btn-login');
+  btn.disabled = true; btn.textContent = 'Signing in...';
+
+  try {
+    const res = await fetch(`${API}/login/`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({username, password})
+    });
+    const data = await res.json();
+    if (!res.ok) return showAlert('login-alert', data.error || 'Login failed.', 'error');
+
+    currentToken = data.token;
+    currentTeacher = data.user;
+    localStorage.setItem('teacher_token', data.token);
+    localStorage.setItem('teacher_user', JSON.stringify(data.user));
+    document.getElementById('teacher-name').textContent = `${data.user.firstname} ${data.user.lastname}`;
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('dashboard-screen').style.display = 'block';
+    loadStudents();
+    loadNotifications();
+  } catch(e) {
+    showAlert('login-alert', 'Could not reach the server.', 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Sign in';
+  }
+}
+
+async function loadStudents() {
+  document.getElementById('student-list').innerHTML = '<p class="empty">Loading students...</p>';
+  try {
+    const res = await fetch(`${API}/teacher/students/?teacher_id=${currentTeacher.id}`, {
+      headers: authHeaders()
+    });
+    const data = await res.json();
+    allStudents = data.students || [];
+
+    const allCourses = [...new Set(allStudents.flatMap(s => s.courses))].sort();
+    const select = document.getElementById('class-filter');
+    select.innerHTML = '<option value="">All classes</option>';
+    allCourses.forEach(course => {
+      const opt = document.createElement('option');
+      opt.value = course;
+      opt.textContent = course;
+      select.appendChild(opt);
+    });
+
+    document.getElementById('student-count').textContent = `${allStudents.length} student${allStudents.length !== 1 ? 's' : ''}`;
+    renderStudents(allStudents);
+  } catch(e) {
+    document.getElementById('student-list').innerHTML = '<p class="empty">Could not load students.</p>';
+  }
+}
+
+function renderStudents(students) {
+  const list = document.getElementById('student-list');
+  if (students.length === 0) {
+    list.innerHTML = '<p class="empty">No students found.</p>';
+    return;
+  }
+  list.innerHTML = students.map(s => `
+    <div class="student-card">
+      <div class="student-info">
+        <div class="avatar">${(s.firstname[0] + s.lastname[0]).toUpperCase()}</div>
+        <div>
+          <div class="student-name">${s.firstname} ${s.lastname}</div>
+          <div class="student-meta">@${s.username} &middot; ${s.courses.join(', ')}</div>
+        </div>
+      </div>
+      <button class="btn-reset" onclick="openModal(${s.id}, '${s.firstname} ${s.lastname}')">Reset password</button>
+    </div>
+  `).join('');
+}
+
+function filterStudents() {
+  const q = document.getElementById('search').value.toLowerCase();
+  const selectedClass = document.getElementById('class-filter').value;
+  const filtered = allStudents.filter(s => {
+    const matchesSearch = !q ||
+      s.firstname.toLowerCase().includes(q) ||
+      s.lastname.toLowerCase().includes(q) ||
+      s.username.toLowerCase().includes(q);
+    const matchesClass = !selectedClass || s.courses.includes(selectedClass);
+    return matchesSearch && matchesClass;
+  });
+  document.getElementById('student-count').textContent = `${filtered.length} of ${allStudents.length} student${allStudents.length !== 1 ? 's' : ''}`;
+  renderStudents(filtered);
+}
+
+async function loadNotifications() {
+  try {
+    const res = await fetch(`${API}/teacher/notifications/?teacher_id=${currentTeacher.id}`, {
+      headers: authHeaders()
+    });
+    const data = await res.json();
+    notifications = data.notifications || [];
+    const count = data.count || 0;
+    const badge = document.getElementById('bell-badge');
+    badge.textContent = count;
+    badge.style.display = count > 0 ? 'flex' : 'none';
+    renderNotifications();
+  } catch(e) {
+    console.error('Could not load notifications');
+  }
+}
+
+function renderNotifications() {
+  const list = document.getElementById('notif-list');
+  if (notifications.length === 0) {
+    list.innerHTML = '<div class="notif-empty">No pending requests</div>';
+    return;
+  }
+  list.innerHTML = notifications.map(n => `
+    <div class="notif-item" id="notif-${n.id}">
+      <div class="notif-name">${n.student_name}</div>
+      <div class="notif-meta">@${n.student_username} · ${n.requested_at}</div>
+      <div class="notif-actions">
+        <button class="btn-notif-reset" onclick="resetFromNotification(${n.student_id}, '${n.student_name}', ${n.id})">Reset password</button>
+        <button class="btn-notif-dismiss" onclick="dismissNotification(${n.id})">Dismiss</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function toggleNotifications() {
+  document.getElementById('notif-panel').classList.toggle('open');
+}
+
+async function dismissNotification(notifId) {
+  try {
+    await fetch(`${API}/teacher/notifications/resolve/`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({notification_id: notifId})
+    });
+    await loadNotifications();
+  } catch(e) {
+    console.error('Could not dismiss notification');
+  }
+}
+
+function resetFromNotification(studentId, studentName, notifId) {
+  toggleNotifications();
+  openModal(studentId, studentName, notifId);
+}
+
+function openModal(studentId, studentName, notifId = null) {
+  selectedStudent = studentId;
+  selectedNotifId = notifId;
+  document.getElementById('modal-subtitle').textContent = `Setting new password for ${studentName}`;
+  document.getElementById('new-password').value = '';
+  hideAlert('modal-alert');
+  document.getElementById('modal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+  selectedStudent = null;
+  selectedNotifId = null;
+}
+
+async function confirmReset() {
+  hideAlert('modal-alert');
+  const newPassword = document.getElementById('new-password').value;
+  if (!newPassword || newPassword.length < 8)
+    return showAlert('modal-alert', 'Password must be at least 8 characters.', 'error');
+
+  const btn = document.getElementById('btn-confirm');
+  btn.disabled = true; btn.textContent = 'Resetting...';
+
+  try {
+    const res = await fetch(`${API}/teacher/reset-password/`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({student_id: selectedStudent, new_password: newPassword})
+    });
+    const data = await res.json();
+    if (!res.ok) return showAlert('modal-alert', data.error || 'Reset failed.', 'error');
+
+    if (selectedNotifId) {
+      await fetch(`${API}/teacher/notifications/resolve/`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({notification_id: selectedNotifId})
+      });
+      await loadNotifications();
+    }
+    closeModal();
+  } catch(e) {
+    showAlert('modal-alert', 'Could not reach the server.', 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Reset Password';
+  }
+}
+
+async function doLogout() {
+  localStorage.removeItem('teacher_token');
+  localStorage.removeItem('teacher_user');
+  await fetch(`${API}/logout/`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({token: currentToken})
+  });
+  currentToken = null;
+  currentTeacher = null;
+  allStudents = [];
+  notifications = [];
+  document.getElementById('l_username').value = '';
+  document.getElementById('l_password').value = '';
+  document.getElementById('dashboard-screen').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'block';
+}
+
+// Auto-login on page load if token exists
+window.addEventListener('DOMContentLoaded', () => {
+  const savedToken = localStorage.getItem('teacher_token');
+  const savedUser = localStorage.getItem('teacher_user');
+  if (savedToken && savedUser) {
+    currentToken = savedToken;
+    currentTeacher = JSON.parse(savedUser);
+    document.getElementById('teacher-name').textContent = `${currentTeacher.firstname} ${currentTeacher.lastname}`;
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('dashboard-screen').style.display = 'block';
+    loadStudents();
+    loadNotifications();
+  }
+});
+
+</script>
+</body>
+</html>

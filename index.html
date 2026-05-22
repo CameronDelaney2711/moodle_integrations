@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Student Portal</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, sans-serif; background: #f5f5f3; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+.card { background: #fff; border-radius: 12px; border: 0.5px solid #e0e0e0; padding: 2rem; width: 100%; max-width: 400px; }
+.card h2 { font-size: 18px; font-weight: 500; margin-bottom: 6px; }
+.card p { font-size: 13px; color: #666; margin-bottom: 1.5rem; }
+.field { margin-bottom: 12px; }
+.field label { display: block; font-size: 13px; color: #666; margin-bottom: 4px; }
+.field input { width: 100%; padding: 8px 12px; font-size: 14px; border: 0.5px solid #ccc; border-radius: 8px; outline: none; }
+.field input:focus { border-color: #888; }
+.btn { width: 100%; padding: 9px; font-size: 14px; font-weight: 500; border-radius: 8px; cursor: pointer; border: none; background: #111; color: #fff; margin-top: 4px; }
+.btn:hover { background: #333; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.alert { padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-top: 12px; display: none; }
+.alert.error { background: #fef2f2; color: #b91c1c; border: 0.5px solid #fca5a5; }
+.alert.success { background: #f0fdf4; color: #15803d; border: 0.5px solid #86efac; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>Forgot Password?</h2>
+  <p>Enter your username and your teacher will be notified to reset it.</p>
+  <div class="field"><label>Username</label><input id="username" placeholder="your_username"></div>
+  <button class="btn" id="btn-submit" onclick="doForgot()">Request password reset</button>
+  <div class="alert" id="alert"></div>
+</div>
+
+<script>
+const API = "http://34.244.255.166:8000/api";
+
+async function doForgot() {
+  const alert = document.getElementById('alert');
+  alert.style.display = 'none';
+
+  const username = document.getElementById('username').value.trim();
+  if (!username) {
+    alert.textContent = 'Please enter your username.';
+    alert.className = 'alert error';
+    alert.style.display = 'block';
+    return;
+  }
+
+  const btn = document.getElementById('btn-submit');
+  btn.disabled = true; btn.textContent = 'Sending...';
+
+  try {
+    const res = await fetch(`${API}/forgot-password/`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({username})
+    });
+    const data = await res.json();
+    alert.textContent = 'Your teacher has been notified to reset your password.';
+    alert.className = 'alert success';
+    alert.style.display = 'block';
+    document.getElementById('username').value = '';
+  } catch(e) {
+    alert.textContent = 'Could not reach the server.';
+    alert.className = 'alert error';
+    alert.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Request password reset';
+  }
+}
+</script>
+</body>
+</html>
