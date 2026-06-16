@@ -415,3 +415,11 @@ def admin_reject_student(request):
     reg.save()
 
     return Response({"message": "Registration request rejected."}, status=200)
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+@require_role("admin")
+def admin_courses(request):
+    courses = get_all_courses()
+    data = [{"id": c.get("id"), "name": c.get("fullname")} for c in courses]
+    return Response({"courses": data}, status=200)

@@ -3,7 +3,7 @@ from .views import (
     register, forgot_password, login, logout,
     teacher_students, teacher_reset_password,
     teacher_notifications, resolve_notification,
-    admin_overview, admin_teachers,
+    admin_overview, admin_teachers, admin_courses,
     admin_create_student, admin_enrol_student,
     admin_registration_requests, admin_approve_student, admin_reject_student,
     activate_account, register_request
@@ -21,6 +21,7 @@ urlpatterns = [
     path('teacher/notifications/resolve/', resolve_notification),
     path('admin/overview/', admin_overview),
     path('admin/teachers/', admin_teachers),
+    path('admin/courses/', admin_courses),
     path('admin/create-student/', admin_create_student),
     path('admin/enrol-student/', admin_enrol_student),
     path('admin/registration-requests/', admin_registration_requests),
