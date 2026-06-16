@@ -10,6 +10,9 @@ body { font-family: system-ui, sans-serif; background: #f5f5f3; min-height: 100v
 .card { background: #fff; border-radius: 12px; border: 0.5px solid #e0e0e0; padding: 2rem; width: 100%; max-width: 400px; }
 .card h2 { font-size: 18px; font-weight: 500; margin-bottom: 6px; }
 .card p { font-size: 13px; color: #666; margin-bottom: 1.5rem; }
+.tabs { display: flex; gap: 0; margin-bottom: 1.5rem; border: 0.5px solid #e0e0e0; border-radius: 8px; overflow: hidden; }
+.tab { flex: 1; padding: 8px; font-size: 12px; font-weight: 500; cursor: pointer; background: #fff; border: none; color: #666; }
+.tab.active { background: #111; color: #fff; }
 .field { margin-bottom: 12px; }
 .field label { display: block; font-size: 13px; color: #666; margin-bottom: 4px; }
 .field input { width: 100%; padding: 8px 12px; font-size: 14px; border: 0.5px solid #ccc; border-radius: 8px; outline: none; }
@@ -20,33 +23,140 @@ body { font-family: system-ui, sans-serif; background: #f5f5f3; min-height: 100v
 .alert { padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-top: 12px; display: none; }
 .alert.error { background: #fef2f2; color: #b91c1c; border: 0.5px solid #fca5a5; }
 .alert.success { background: #f0fdf4; color: #15803d; border: 0.5px solid #86efac; }
+.panel { display: none; }
+.panel.active { display: block; }
+.hint { font-size: 12px; color: #888; margin-top: 8px; line-height: 1.5; }
 </style>
 </head>
 <body>
 <div class="card">
-  <h2>Forgot Password?</h2>
-  <p>Enter your username and your teacher will be notified to reset it.</p>
-  <div class="field"><label>Username</label><input id="username" placeholder="your_username"></div>
-  <button class="btn" id="btn-submit" onclick="doForgot()">Request password reset</button>
-  <div class="alert" id="alert"></div>
+  <h2>Student Portal</h2>
+  <p>Register, activate your account, or reset your password.</p>
+
+  <div class="tabs">
+    <button class="tab active" id="tab-register" onclick="switchTab('register')">Register</button>
+    <button class="tab" id="tab-activate" onclick="switchTab('activate')">Activate</button>
+    <button class="tab" id="tab-forgot" onclick="switchTab('forgot')">Forgot Password</button>
+  </div>
+
+  <!-- Register Panel -->
+  <div class="panel active" id="panel-register">
+    <div class="field"><label>First Name</label><input id="r_firstname" placeholder="John"></div>
+    <div class="field"><label>Last Name</label><input id="r_lastname" placeholder="Doe"></div>
+    <div class="field"><label>Email</label><input id="r_email" type="email" placeholder="john.doe@school.ie"></div>
+    <button class="btn" id="btn-register" onclick="doRegister()">Request Account</button>
+    <div class="alert" id="register-alert"></div>
+    <p class="hint">Once approved, your admin will provide you with a username and activation code.</p>
+  </div>
+
+  <!-- Activate Panel -->
+  <div class="panel" id="panel-activate">
+    <div class="field"><label>Username</label><input id="a_username" placeholder="your_username"></div>
+    <div class="field"><label>Activation Code</label><input id="a_code" placeholder="e.g. DXBE4VI2" style="text-transform:uppercase;"></div>
+    <div class="field"><label>New Password</label><input id="a_password" type="password" placeholder="Min 8 chars, 1 uppercase, 1 number"></div>
+    <button class="btn" id="btn-activate" onclick="doActivate()">Activate Account</button>
+    <div class="alert" id="activate-alert"></div>
+    <p class="hint">Your username and activation code were provided by your school admin.</p>
+  </div>
+
+  <!-- Forgot Password Panel -->
+  <div class="panel" id="panel-forgot">
+    <div class="field"><label>Username</label><input id="f_username" placeholder="your_username"></div>
+    <button class="btn" id="btn-forgot" onclick="doForgot()">Request Password Reset</button>
+    <div class="alert" id="forgot-alert"></div>
+    <p class="hint">Your teacher will be notified to reset your password.</p>
+  </div>
 </div>
 
 <script>
 const API = "http://34.244.255.166:8000/api";
 
-async function doForgot() {
-  const alert = document.getElementById('alert');
-  alert.style.display = 'none';
+function switchTab(tab) {
+  ['register', 'activate', 'forgot'].forEach(t => {
+    document.getElementById('panel-' + t).classList.toggle('active', t === tab);
+    document.getElementById('tab-' + t).classList.toggle('active', t === tab);
+    document.getElementById(t === 'register' ? 'register-alert' : t === 'activate' ? 'activate-alert' : 'forgot-alert').style.display = 'none';
+  });
+}
 
-  const username = document.getElementById('username').value.trim();
-  if (!username) {
-    alert.textContent = 'Please enter your username.';
-    alert.className = 'alert error';
-    alert.style.display = 'block';
-    return;
+function showAlert(id, msg, type) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.className = 'alert ' + type;
+  el.style.display = 'block';
+}
+
+async function doRegister() {
+  document.getElementById('register-alert').style.display = 'none';
+  const firstname = document.getElementById('r_firstname').value.trim();
+  const lastname  = document.getElementById('r_lastname').value.trim();
+  const email     = document.getElementById('r_email').value.trim();
+
+  if (!firstname || !lastname || !email)
+    return showAlert('register-alert', 'All fields are required.', 'error');
+
+  const btn = document.getElementById('btn-register');
+  btn.disabled = true; btn.textContent = 'Submitting...';
+
+  try {
+    const res = await fetch(`${API}/register-request/`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({firstname, lastname, email})
+    });
+    const data = await res.json();
+    if (!res.ok) return showAlert('register-alert', data.error || 'Submission failed.', 'error');
+    showAlert('register-alert', 'Request submitted! Your admin will be in touch with your login details.', 'success');
+    document.getElementById('r_firstname').value = '';
+    document.getElementById('r_lastname').value = '';
+    document.getElementById('r_email').value = '';
+  } catch(e) {
+    showAlert('register-alert', 'Could not reach the server.', 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Request Account';
   }
+}
 
-  const btn = document.getElementById('btn-submit');
+async function doActivate() {
+  document.getElementById('activate-alert').style.display = 'none';
+  const username = document.getElementById('a_username').value.trim();
+  const code     = document.getElementById('a_code').value.trim().toUpperCase();
+  const password = document.getElementById('a_password').value;
+
+  if (!username || !code || !password)
+    return showAlert('activate-alert', 'All fields are required.', 'error');
+  if (password.length < 8)
+    return showAlert('activate-alert', 'Password must be at least 8 characters.', 'error');
+
+  const btn = document.getElementById('btn-activate');
+  btn.disabled = true; btn.textContent = 'Activating...';
+
+  try {
+    const res = await fetch(`${API}/activate/`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({username, code, password})
+    });
+    const data = await res.json();
+    if (!res.ok) return showAlert('activate-alert', data.error || 'Activation failed.', 'error');
+    showAlert('activate-alert', 'Account activated! You can now log in to Moodle.', 'success');
+    document.getElementById('a_username').value = '';
+    document.getElementById('a_code').value = '';
+    document.getElementById('a_password').value = '';
+  } catch(e) {
+    showAlert('activate-alert', 'Could not reach the server.', 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Activate Account';
+  }
+}
+
+async function doForgot() {
+  document.getElementById('forgot-alert').style.display = 'none';
+  const username = document.getElementById('f_username').value.trim();
+  if (!username)
+    return showAlert('forgot-alert', 'Please enter your username.', 'error');
+
+  const btn = document.getElementById('btn-forgot');
   btn.disabled = true; btn.textContent = 'Sending...';
 
   try {
@@ -55,17 +165,13 @@ async function doForgot() {
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({username})
     });
-    const data = await res.json();
-    alert.textContent = 'Your teacher has been notified to reset your password.';
-    alert.className = 'alert success';
-    alert.style.display = 'block';
-    document.getElementById('username').value = '';
+    await res.json();
+    showAlert('forgot-alert', 'Your teacher has been notified to reset your password.', 'success');
+    document.getElementById('f_username').value = '';
   } catch(e) {
-    alert.textContent = 'Could not reach the server.';
-    alert.className = 'alert error';
-    alert.style.display = 'block';
+    showAlert('forgot-alert', 'Could not reach the server.', 'error');
   } finally {
-    btn.disabled = false; btn.textContent = 'Request password reset';
+    btn.disabled = false; btn.textContent = 'Request Password Reset';
   }
 }
 </script>

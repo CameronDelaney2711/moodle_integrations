@@ -65,6 +65,16 @@ body { font-family: system-ui, sans-serif; background: #f5f5f3; min-height: 100v
 .modal .subtitle { font-size: 13px; color: #666; margin-bottom: 1rem; }
 .modal-btns { display: flex; gap: 8px; margin-top: 1rem; }
 .modal-btns button { flex: 1; padding: 8px; font-size: 13px; border-radius: 8px; cursor: pointer; }
+.admin-section { margin-bottom: 2rem; }
+.stats-row { display: flex; gap: 12px; margin-bottom: 1.5rem; }
+.stat-card { flex: 1; background: #fff; border-radius: 12px; border: 0.5px solid #e0e0e0; padding: 1rem 1.25rem; }
+.stat-value { font-size: 24px; font-weight: 600; }
+.stat-label { font-size: 12px; color: #666; margin-top: 4px; }
+.teacher-card { background: #fff; border-radius: 12px; border: 0.5px solid #e0e0e0; padding: 1rem 1.25rem; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; }
+.teacher-info { display: flex; align-items: center; gap: 12px; }
+.avatar-admin { width: 40px; height: 40px; border-radius: 50%; background: #fef3c7; color: #b45309; display: flex; align-items: center; justify-content: center; font-weight: 500; font-size: 13px; flex-shrink: 0; }
+.teacher-name-card { font-size: 14px; font-weight: 500; }
+.teacher-meta { font-size: 12px; color: #666; margin-top: 2px; }
 .btn-cancel { background: #fff; border: 0.5px solid #ccc; color: #333; }
 .btn-confirm { background: #111; border: none; color: #fff; font-weight: 500; }
 </style>
@@ -104,6 +114,30 @@ body { font-family: system-ui, sans-serif; background: #f5f5f3; min-height: 100v
   </div>
 
   <div class="container">
+    <div class="admin-section" id="admin-section" style="display:none;">
+      <div class="section-header">
+        <h2>School Overview</h2>
+      </div>
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-value" id="stat-courses">-</div>
+          <div class="stat-label">Courses</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-teachers">-</div>
+          <div class="stat-label">Teachers</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-students">-</div>
+          <div class="stat-label">Students</div>
+        </div>
+      </div>
+      <div class="section-header">
+        <h2>All Teachers</h2>
+        <span class="badge" id="teacher-count">0 teachers</span>
+      </div>
+      <div id="teacher-list"></div>
+    </div>
     <div class="section-header">
       <h2>My Students</h2>
       <span class="badge" id="student-count">0 students</span>
@@ -186,6 +220,10 @@ async function doLogin() {
     document.getElementById('dashboard-screen').style.display = 'block';
     loadStudents();
     loadNotifications();
+    if (currentTeacher.role === 'admin') {
+      document.getElementById('admin-section').style.display = 'block';
+      loadAdminOverview();
+    }
   } catch(e) {
     showAlert('login-alert', 'Could not reach the server.', 'error');
   } finally {
@@ -392,6 +430,42 @@ window.addEventListener('DOMContentLoaded', () => {
     loadNotifications();
   }
 });
+async function loadAdminOverview() {
+  try {
+    const [overviewRes, teachersRes] = await Promise.all([
+      fetch(`${API}/admin/overview/`, { headers: authHeaders() }),
+      fetch(`${API}/admin/teachers/`, { headers: authHeaders() })
+    ]);
+    const overview = await overviewRes.json();
+    const teachersData = await teachersRes.json();
+
+    document.getElementById('stat-courses').textContent = overview.total_courses ?? '-';
+    document.getElementById('stat-teachers').textContent = overview.total_teachers ?? '-';
+    document.getElementById('stat-students').textContent = overview.total_students ?? '-';
+
+    const teachers = teachersData.teachers || [];
+    document.getElementById('teacher-count').textContent = `${teachers.length} teacher${teachers.length !== 1 ? 's' : ''}`;
+
+    const list = document.getElementById('teacher-list');
+    if (teachers.length === 0) {
+      list.innerHTML = '<p class="empty">No teachers found.</p>';
+      return;
+    }
+    list.innerHTML = teachers.map(t => `
+      <div class="teacher-card">
+        <div class="teacher-info">
+          <div class="avatar-admin">${(t.firstname[0] + t.lastname[0]).toUpperCase()}</div>
+          <div>
+            <div class="teacher-name-card">${t.firstname} ${t.lastname}</div>
+            <div class="teacher-meta">@${t.username} &middot; ${t.courses.join(', ')}</div>
+          </div>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) {
+    console.error('Could not load admin overview');
+  }
+}
 
 </script>
 </body>

@@ -250,3 +250,182 @@ def verify_teacher_token(token):
         return None
     except Exception:
         return None
+
+ADMIN_USER_IDS = [2, 71]
+
+def get_user_role(user_id):
+    """
+    Determines a user's role by checking their course enrolments in Moodle.
+    Returns 'admin', 'teacher', or 'student'.
+    """
+    if user_id in ADMIN_USER_IDS:
+        return "admin"
+
+    url = f"{settings.MOODLE_BASE_URL}/webservice/rest/server.php"
+    params = {
+        "wstoken": settings.MOODLE_TOKEN,
+        "wsfunction": "core_enrol_get_users_courses",
+        "moodlewsrestformat": "json",
+        "userid": user_id,
+    }
+    try:
+        response = requests.post(url, data=params, timeout=10)
+        response.raise_for_status()
+        courses = response.json()
+    except Exception:
+        return "student"
+
+    if not isinstance(courses, list) or len(courses) == 0:
+        return "student"
+
+    for course in courses:
+        enrol_params = {
+            "wstoken": settings.MOODLE_TOKEN,
+            "wsfunction": "core_enrol_get_enrolled_users",
+            "moodlewsrestformat": "json",
+            "courseid": course.get("id"),
+        }
+        try:
+            enrol_response = requests.post(url, data=enrol_params, timeout=10)
+            enrol_response.raise_for_status()
+            enrolled = enrol_response.json()
+        except Exception:
+            continue
+
+        if not isinstance(enrolled, list):
+            continue
+
+        for user in enrolled:
+            if user.get("id") == user_id:
+                roles = [r.get("shortname") for r in user.get("roles", [])]
+                if "editingteacher" in roles or "teacher" in roles:
+                    return "teacher"
+
+    return "student"
+
+def get_all_courses():
+    url = f"{settings.MOODLE_BASE_URL}/webservice/rest/server.php"
+    params = {
+        "wstoken": settings.MOODLE_TOKEN,
+        "wsfunction": "core_course_get_courses",
+        "moodlewsrestformat": "json",
+    }
+    try:
+        response = requests.post(url, data=params, timeout=10)
+        response.raise_for_status()
+        courses = response.json()
+    except Exception:
+        return []
+    if not isinstance(courses, list):
+        return []
+    # Exclude the site-level "course" (id=1, the Moodle front page)
+    return [c for c in courses if c.get("id") != 1]
+
+def get_all_teachers():
+    url = f"{settings.MOODLE_BASE_URL}/webservice/rest/server.php"
+    courses = get_all_courses()
+
+    teachers = {}
+    for course in courses:
+        enrol_params = {
+            "wstoken": settings.MOODLE_TOKEN,
+            "wsfunction": "core_enrol_get_enrolled_users",
+            "moodlewsrestformat": "json",
+            "courseid": course.get("id"),
+        }
+        try:
+            response = requests.post(url, data=enrol_params, timeout=10)
+            response.raise_for_status()
+            enrolled = response.json()
+        except Exception:
+            continue
+
+        if not isinstance(enrolled, list):
+            continue
+
+        for user in enrolled:
+            roles = [r.get("shortname") for r in user.get("roles", [])]
+            uid = user.get("id")
+            is_teacher = "editingteacher" in roles or "teacher" in roles
+            if is_teacher and uid not in ADMIN_USER_IDS:
+                if uid not in teachers:
+                    teachers[uid] = {
+                        "id": uid,
+                        "username": user.get("username"),
+                        "firstname": user.get("firstname"),
+                        "lastname": user.get("lastname"),
+                        "email": user.get("email"),
+                        "courses": [],
+                    }
+                teachers[uid]["courses"].append(course.get("fullname"))
+
+    return list(teachers.values())
+
+def get_all_students():
+    url = f"{settings.MOODLE_BASE_URL}/webservice/rest/server.php"
+    courses = get_all_courses()
+
+    students = set()
+    for course in courses:
+        enrol_params = {
+            "wstoken": settings.MOODLE_TOKEN,
+            "wsfunction": "core_enrol_get_enrolled_users",
+            "moodlewsrestformat": "json",
+            "courseid": course.get("id"),
+        }
+        try:
+            response = requests.post(url, data=enrol_params, timeout=10)
+            response.raise_for_status()
+            enrolled = response.json()
+        except Exception:
+            continue
+
+        if not isinstance(enrolled, list):
+            continue
+
+        for user in enrolled:
+            roles = [r.get("shortname") for r in user.get("roles", [])]
+            if "student" in roles:
+                students.add(user.get("id"))
+
+    return list(students)
+
+def create_moodle_user(username, firstname, lastname, email):
+    url = f"{settings.MOODLE_BASE_URL}/webservice/rest/server.php"
+    params = {
+        "wstoken": settings.MOODLE_TOKEN,
+        "wsfunction": "core_user_create_users",
+        "moodlewsrestformat": "json",
+        "users[0][username]": username,
+        "users[0][password]": "Temp@1234!",
+        "users[0][email]": email,
+        "users[0][firstname]": firstname,
+        "users[0][lastname]": lastname,
+    }
+    try:
+        response = requests.post(url, data=params, timeout=10)
+        response.raise_for_status()
+        result = response.json()
+        if isinstance(result, list) and len(result) > 0:
+            return {"success": True, "id": result[0].get("id")}
+        return {"success": False, "error": result.get("message", "Failed to create user.")}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def enrol_student_in_course(student_id, course_id):
+    url = f"{settings.MOODLE_BASE_URL}/webservice/rest/server.php"
+    params = {
+        "wstoken": settings.MOODLE_TOKEN,
+        "wsfunction": "enrol_manual_enrol_users",
+        "moodlewsrestformat": "json",
+        "enrolments[0][roleid]": 5,  # student role
+        "enrolments[0][userid]": student_id,
+        "enrolments[0][courseid]": course_id,
+    }
+    try:
+        response = requests.post(url, data=params, timeout=10)
+        response.raise_for_status()
+        return {"success": True}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
